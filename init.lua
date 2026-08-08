@@ -152,8 +152,8 @@ local function callback_window_created(w, appName, event)
 --      if w then
 --         print("Focusing window" .. w:title())
 --      end
-      callback_window_created(w, appName, "windowDestroyed")
-      callback_window_created(w, appName, "windowCreated")
+            callback_window_created(w, appName, "windowDestroyed")
+            callback_window_created(w, appName, "windowCreated")
 --      obj:print_table0(obj.currentWindows)
    end
 end
@@ -161,6 +161,20 @@ theWindows:subscribe(hs.window.filter.windowCreated, callback_window_created)
 theWindows:subscribe(hs.window.filter.windowDestroyed, callback_window_created)
 theWindows:subscribe(hs.window.filter.windowFocused, callback_window_created)
 
+local function getWorkspaceText(win)
+   local windowSpaces = hs.spaces.windowSpaces(win)
+   local workspaceText = ""
+   if windowSpaces and #windowSpaces > 0 then
+      local wsid = windowSpaces[1]
+      local idx = hs.fnutils.indexOf(hs.spaces.allSpaces()[hs.screen.mainScreen():getUUID()] or {}, wsid)
+      if idx then
+         workspaceText = " [" .. tostring(idx) .. "]"
+      else
+         workspaceText = " [n/a]"
+      end
+   end
+   return workspaceText
+end
 
 function obj:count_app_windows(currentApp)
    local count = 0
@@ -197,8 +211,9 @@ function obj:list_window_choices(onlyCurrentApp, onlyCurrentSpace, currentWin)
          if (not onlyCurrentApp) or (app == currentApp) then
 --            print("inserting...")
             if (not onlyCurrentSpace) or hs.fnutils.contains(hs.spaces.windowSpaces(w), currentSpace) then
+               local workspaceText = getWorkspaceText(w)
                table.insert(windowChoices, {
-                  text = w:title() .. "--" .. appName,
+                  text = w:title() .. "--" .. appName .. workspaceText,
                   subText = appBundleId,
                   uuid = i,
                   image = appImage,
@@ -213,7 +228,6 @@ end
 
 function obj:windowActivate(w)
    if w then
-      print("window detail: " .. hs.inspect.inspect(w))
       -- Switch to the space where the window is located (only if different from current space)
       local windowSpace = hs.spaces.windowSpaces(w)
       if windowSpace and #windowSpace > 0 then
@@ -226,11 +240,12 @@ function obj:windowActivate(w)
                w:application():activate()
                w:focus()
             end)
+         else
+            -- this fixes a bug when the application is a different screen
+            w:application():activate()
+            w:focus()
          end
       end
-      -- this fixes a bug when the application is a different screen
-      w:application():activate()
-      w:focus()
    else
       hs.alert.show("unable to focus " .. (name or "window"))
    end
